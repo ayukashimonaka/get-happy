@@ -150,9 +150,53 @@
 
         let isPlaying = false;
         let score = 0;
+        let timeLeft = 30; // 30秒の制限時間
         let fallingItems = [];
-        let gameInterval = null;
+        let spawnTimer = null;
+        let countdownTimer = null;
 
+        // タイマー表示用のUIをHTMLに追加するか、scoreValの横に表示する処理
+        const timerDisplay = document.createElement('div');
+        timerDisplay.style.cssText = "position:absolute; top:20px; left:20px; font-size:24px; color:#fff;";
+        gameArea.appendChild(timerDisplay);
+
+        function startGame() {
+            if (isPlaying) return;
+            isPlaying = true;
+            score = 0;
+            timeLeft = 30;
+            scoreVal.innerText = score;
+            startScreen.style.display = 'none';
+
+            // プレゼント生成ループ（徐々に早くする）
+            let spawnRate = 1000;
+            const gameStep = () => {
+                if(!isPlaying) return;
+                spawnPresent();
+                // スコアに応じて生成速度を上げる（最短200ms）
+                spawnRate = Math.max(200, 1000 - (score * 20));
+                spawnTimer = setTimeout(gameStep, spawnRate);
+            };
+            gameStep();
+
+            // カウントダウンタイマー
+            countdownTimer = setInterval(() => {
+                timeLeft--;
+                timerDisplay.innerText = `TIME: ${timeLeft}`;
+                if (timeLeft <= 0) endGame();
+            }, 1000);
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        function endGame() {
+            isPlaying = false;
+            clearInterval(countdownTimer);
+            clearTimeout(spawnTimer);
+            alert(`タイムアップ！ スコア: ${score}`);
+            startScreen.style.display = 'flex';
+            startBtn.innerText = "RETRY";
+        }
         // --- タッチ操作 & マウス操作の両対応 ---
         function moveSock(x) {
             // 画面外にはみ出さないように制限
