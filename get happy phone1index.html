@@ -2,131 +2,98 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <!-- スマホ用に画面サイズを固定し、拡大縮小を禁止する設定 -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Xmas Game Mobile</title>
+    <title>Xmas Pair Game (Fix)</title>
+    <script src="https://unpkg.com/peerjs@1.5.1/dist/peerjs.min.js"></script>
     <style>
         body {
             margin: 0; padding: 0;
             background: linear-gradient(to bottom, #0f2027, #203a43, #2c5364);
-            height: 100vh; overflow: hidden; /* スクロール禁止 */
-            font-family: 'Arial Black', sans-serif;
-            user-select: none; color: white;
-            /* スマホでのタッチ操作によるスクロールやズームを防ぐ */
-            touch-action: none;
-            -webkit-touch-callout: none;
+            height: 100vh; overflow: hidden;
+            font-family: 'Arial', sans-serif;
+            user-select: none; color: white; touch-action: none; text-align: center;
         }
 
-        /* --- 上部：ツリーエリア --- */
-        .top-area {
-            position: absolute;
-            top: 0; left: 0; width: 100%; height: 30%;
-            pointer-events: none; /* タッチを透過 */
-            z-index: 5;
+        .screen { display: none; width: 100%; height: 100%; position: absolute; top: 0; left: 0; }
+        .active { display: flex; flex-direction: column; justify-content: center; align-items: center; }
+
+        h1 { margin-bottom: 30px; font-size: 24px; text-shadow: 0 0 10px gold; }
+        .btn {
+            background: #e63946; color: white; border: none; padding: 20px 40px;
+            font-size: 20px; border-radius: 50px; margin: 10px; font-weight: bold;
+            box-shadow: 0 5px 0 #b71c1c; width: 80%; max-width: 300px;
+        }
+        .btn:active { transform: translateY(4px); box-shadow: 0 1px 0 #b71c1c; }
+        .btn-blue { background: #457b9d; box-shadow: 0 5px 0 #1d3557; }
+        .btn-blue:active { box-shadow: 0 1px 0 #1d3557; }
+
+        input[type="text"] {
+            padding: 15px; font-size: 24px; text-align: center; border-radius: 10px;
+            border: none; width: 200px; margin-bottom: 20px; text-transform: uppercase;
         }
 
-        .tree-container {
-            position: absolute;
-            top: 40%; left: 50%;
-            transform: translate(-50%, -50%) scale(1.2);
+        .tap-area {
+            width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center;
+            background: rgba(255,255,255,0.1); cursor: pointer;
         }
+        .id-display { font-size: 40px; font-weight: bold; color: #ffd700; margin: 20px 0; letter-spacing: 5px; }
+        .status { font-size: 14px; color: #ccc; margin-top: 10px; }
+
+        /* ゲームエリア */
+        .game-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 10; pointer-events: none;}
         
-        /* ツリー描画 */
-        .star { width:0; height:0; border-left:10px solid transparent; border-right:10px solid transparent; border-bottom:20px solid #ffd700; position:absolute; top:-20px; left:50%; transform:translateX(-50%); filter:drop-shadow(0 0 10px #ffd700); }
-        .tree-layer { width:0; height:0; border-left:solid transparent; border-right:solid transparent; border-bottom:solid #0f5132; position:absolute; left:50%; transform:translateX(-50%); }
-        .layer-1 { border-width:0 30px 40px 30px; top:0; z-index:3; border-bottom-color:#198754; }
-        .layer-2 { border-width:0 50px 60px 50px; top:25px; z-index:2; border-bottom-color:#146c43; }
-        .layer-3 { border-width:0 70px 80px 70px; top:60px; z-index:1; border-bottom-color:#0f5132; }
-        .trunk { width:20px; height:40px; background-color:#5d4037; position:absolute; top:140px; left:50%; transform:translateX(-50%); }
-        .tree-wrapper { position:relative; width:140px; height:180px; }
-
-        /* --- プレゼント --- */
         .present {
-            position: fixed;
-            z-index: 50;
-            font-size: 40px; /* スマホで見やすいように大きく */
-            pointer-events: none;
-            will-change: top;
+            position: fixed; z-index: 50; font-size: 40px; pointer-events: none; will-change: top;
             filter: drop-shadow(0 4px 4px rgba(0,0,0,0.3));
+            /* 判定を確認しやすくするため、四角い枠はいったん消しておきます */
         }
 
-        /* --- 下部：操作エリア --- */
-        .game-area {
-            position: absolute;
-            bottom: 0; left: 0; width: 100%; height: 70%;
-            z-index: 10;
-        }
-
-        /* 赤い靴下 (CSS描画) */
+        /* 靴下 */
         .sock-container {
-            position: absolute;
-            bottom: 40px; /* 親指とかぶらないよう少し上 */
-            left: 50%;
-            width: 70px;
-            height: 110px;
-            z-index: 100;
-            transform: translateX(-35px); /* 中心合わせ */
-            pointer-events: none;
+            position: absolute; bottom: 40px; left: 50%; width: 70px; height: 110px; z-index: 100;
+            transform: translateX(-35px); pointer-events: none;
         }
         .sock-body { position: absolute; bottom: 25px; left: 0; width: 55px; height: 85px; background-color: #d32f2f; border-radius: 0 0 25px 25px; }
         .sock-foot { position: absolute; bottom: 25px; left: 25px; width: 55px; height: 45px; background-color: #d32f2f; border-radius: 0 30px 30px 0; }
         .sock-top { position: absolute; top: 0; left: -5px; width: 65px; height: 30px; background-color: #f5f5f5; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
         .sock-heel { position: absolute; bottom: 25px; left: 0; width: 30px; height: 30px; background-color: #b71c1c; border-radius: 0 100% 0 0; }
 
-        /* UI */
-        .score-board {
-            position: absolute; top: 20px; right: 20px;
-            font-size: 30px; color: #ffd700; font-weight: bold;
-            text-shadow: 2px 2px 0 #000;
-            z-index: 200;
-        }
-        .score-label { font-size: 12px; display: block; text-align: right; color: #ccc;}
+        .score-board { position: absolute; top: 20px; right: 20px; font-size: 30px; color: #ffd700; font-weight: bold; text-shadow: 2px 2px 0 #000; z-index: 200; }
+        .catch-effect { position: absolute; color: #ffd700; font-weight: bold; font-size: 30px; animation: floatUp 0.5s forwards; text-shadow: 0 0 5px orange; z-index: 150; }
+        @keyframes floatUp { 0% { transform: translateY(0) scale(1); opacity: 1; } 100% { transform: translateY(-50px) scale(1.5); opacity: 0; } }
 
-        .start-overlay {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.8);
-            display: flex; flex-direction: column;
-            justify-content: center; align-items: center;
-            z-index: 999;
-        }
-        .btn {
-            background-color: #e63946; color: white; border: none; padding: 20px 40px;
-            font-size: 24px; border-radius: 50px; font-weight: bold;
-            box-shadow: 0 5px 0 #b71c1c;
-        }
-        .btn:active { transform: translateY(4px); box-shadow: 0 1px 0 #b71c1c; }
-
-        .catch-effect {
-            position: absolute; color: #ffd700; font-weight: bold; font-size: 30px;
-            animation: floatUp 0.5s forwards; text-shadow: 0 0 5px orange; z-index: 150;
-        }
-        @keyframes floatUp {
-            0% { transform: translateY(0) scale(1); opacity: 1; }
-            100% { transform: translateY(-50px) scale(1.5); opacity: 0; }
-        }
-        
-        .hint { margin-top: 20px; color: #ccc; font-size: 14px; text-align: center; }
     </style>
 </head>
 <body>
 
-    <!-- ツリー表示 -->
-    <div class="top-area">
-        <div class="tree-container">
-            <div class="tree-wrapper">
-                <div class="star"></div><div class="tree-layer layer-1"></div><div class="tree-layer layer-2"></div><div class="tree-layer layer-3"></div><div class="trunk"></div>
-            </div>
+    <div id="screen-menu" class="screen active">
+        <h1>Xmas Pair Game</h1>
+        <button class="btn" onclick="setupHost()">投げる役 (親)</button>
+        <button class="btn btn-blue" onclick="showJoin()">キャッチ役 (子)</button>
+        <div style="margin-top:20px; font-size:12px; color:#aaa;">スマホ2台で遊んでね</div>
+    </div>
+
+    <div id="screen-host" class="screen">
+        <h3>このIDを相手に入力してね</h3>
+        <div class="id-display" id="my-id-display">...</div>
+        <div class="status" id="host-status">接続待ち...</div>
+        <div class="tap-area" id="tapArea" style="display:none;">
+            <h2>TAP HERE!</h2>
+            <div style="font-size:60px;">🎁</div>
+            <p>タップすると相手に落ちるよ</p>
         </div>
     </div>
 
-    <!-- ゲームエリア -->
-    <div class="game-area" id="gameArea">
-        <div class="score-board">
-            <span class="score-label">SCORE</span>
-            <span id="scoreVal">0</span>
-        </div>
+    <div id="screen-join" class="screen">
+        <h3>相手のIDを入れてね</h3>
+        <input type="text" id="join-id-input" maxlength="4" placeholder="ABCD">
+        <button class="btn btn-blue" onclick="joinGame()">接続する</button>
+    </div>
 
-        <!-- 靴下 -->
+    <div id="screen-game" class="screen">
+        <div class="score-board">SCORE: <span id="scoreVal">0</span></div>
+        <div class="status" style="position:absolute; top:10px; left:10px;">接続中</div>
+        <div class="game-layer" id="gameArea"></div>
         <div class="sock-container" id="playerSock">
             <div class="sock-foot"></div>
             <div class="sock-body"></div>
@@ -135,180 +102,153 @@
         </div>
     </div>
 
-    <!-- スタート画面 -->
-    <div class="start-overlay" id="startScreen">
-        <button class="btn" id="startBtn">START</button>
-        <div class="hint">画面をなぞって靴下を動かそう！</div>
-    </div>
-
     <script>
-        const gameArea = document.getElementById('gameArea');
-        const playerSock = document.getElementById('playerSock');
-        const startScreen = document.getElementById('startScreen');
-        const startBtn = document.getElementById('startBtn');
-        const scoreVal = document.getElementById('scoreVal');
+        let peer;
+        let conn;
+        let myId = '';
+        
+        function generateShortId() {
+            const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+            let result = '';
+            for (let i = 0; i < 4; i++) {
+                result += chars.charAt(Math.floor(Math.random() * chars.length));
+            }
+            return result;
+        }
 
-        let isPlaying = false;
-        let score = 0;
-        let timeLeft = 30; // 30秒の制限時間
-        let fallingItems = [];
-        let spawnTimer = null;
-        let countdownTimer = null;
+        function showScreen(id) {
+            document.querySelectorAll('.screen').forEach(el => el.classList.remove('active'));
+            document.getElementById(id).classList.add('active');
+        }
 
-        // タイマー表示用のUIをHTMLに追加するか、scoreValの横に表示する処理
-        const timerDisplay = document.createElement('div');
-        timerDisplay.style.cssText = "position:absolute; top:20px; left:20px; font-size:24px; color:#fff;";
-        gameArea.appendChild(timerDisplay);
+        function setupHost() {
+            showScreen('screen-host');
+            const shortId = generateShortId();
+            const peerId = 'xmas_game_' + shortId;
+            peer = new Peer(peerId);
 
-        function startGame() {
-            if (isPlaying) return;
-            isPlaying = true;
-            score = 0;
-            timeLeft = 30;
-            scoreVal.innerText = score;
-            startScreen.style.display = 'none';
+            peer.on('open', (id) => {
+                myId = shortId;
+                document.getElementById('my-id-display').innerText = shortId;
+            });
+            peer.on('error', (err) => {
+                alert('IDが重複しました。リロードしてね');
+                location.reload();
+            });
+            peer.on('connection', (c) => {
+                conn = c;
+                document.getElementById('host-status').innerText = "つながったよ！";
+                document.getElementById('tapArea').style.display = 'flex';
+                setupTapEvent();
+            });
+        }
 
-            // プレゼント生成ループ（徐々に早くする）
-            let spawnRate = 1000;
-            const gameStep = () => {
-                if(!isPlaying) return;
-                spawnPresent();
-                // スコアに応じて生成速度を上げる（最短200ms）
-                spawnRate = Math.max(200, 1000 - (score * 20));
-                spawnTimer = setTimeout(gameStep, spawnRate);
+        function setupTapEvent() {
+            const area = document.getElementById('tapArea');
+            const sendDrop = (e) => {
+                e.preventDefault();
+                if(!conn) return;
+                area.style.backgroundColor = 'rgba(255,255,255,0.3)';
+                setTimeout(() => area.style.backgroundColor = 'rgba(255,255,255,0.1)', 100);
+
+                const emojis = ['🎁', '🧸', '🍬', '🔔', '💎', '🍰'];
+                const emoji = emojis[Math.floor(Math.random() * emojis.length)];
+                const x = 10 + Math.random() * 80;
+                
+                conn.send({ type: 'DROP', emoji: emoji, x: x });
             };
-            gameStep();
-
-            // カウントダウンタイマー
-            countdownTimer = setInterval(() => {
-                timeLeft--;
-                timerDisplay.innerText = `TIME: ${timeLeft}`;
-                if (timeLeft <= 0) endGame();
-            }, 1000);
-
-            requestAnimationFrame(gameLoop);
+            area.addEventListener('touchstart', sendDrop);
+            area.addEventListener('click', sendDrop);
         }
 
-        function endGame() {
-            isPlaying = false;
-            clearInterval(countdownTimer);
-            clearTimeout(spawnTimer);
-            alert(`タイムアップ！ スコア: ${score}`);
-            startScreen.style.display = 'flex';
-            startBtn.innerText = "RETRY";
-        }
-        // --- タッチ操作 & マウス操作の両対応 ---
-        function moveSock(x) {
-            // 画面外にはみ出さないように制限
-            // 画面幅
-            const w = window.innerWidth;
-            // 左右の余白を少し持たせる
-            if (x < 0) x = 0;
-            if (x > w) x = w;
-            
-            playerSock.style.left = x + 'px';
+        function showJoin() { showScreen('screen-join'); }
+
+        function joinGame() {
+            const inputVal = document.getElementById('join-id-input').value.toUpperCase();
+            if(inputVal.length !== 4) { alert('4文字のIDを入れてね'); return; }
+            const targetPeerId = 'xmas_game_' + inputVal;
+            peer = new Peer();
+
+            peer.on('open', (id) => {
+                conn = peer.connect(targetPeerId);
+                conn.on('open', () => { startGameClient(); });
+                conn.on('data', (data) => {
+                    if(data.type === 'DROP') spawnPresent(data);
+                });
+                conn.on('error', () => { alert('接続失敗。IDを確認してね'); });
+            });
         }
 
-        // タッチイベント (スマホ用)
-        gameArea.addEventListener('touchmove', (e) => {
-            // デフォルトのスクロールなどを防ぐ
-            e.preventDefault(); 
-            const touch = e.touches[0];
-            moveSock(touch.clientX);
-        }, { passive: false });
+        let score = 0;
+        let fallingItems = [];
 
-        // マウスイベント (PC確認用)
-        gameArea.addEventListener('mousemove', (e) => {
-            moveSock(e.clientX);
-        });
-
-
-        // --- ゲーム進行 ---
-        startBtn.addEventListener('click', () => {
-            startScreen.style.display = 'none';
-            startGame();
-        });
-
-        function startGame() {
-            if (isPlaying) return;
-            isPlaying = true;
-            score = 0;
-            scoreVal.innerText = score;
-
-            gameInterval = setInterval(() => {
-                spawnPresent();
-            }, 1000); // 1秒ごとにドロップ
+        function startGameClient() {
+            showScreen('screen-game');
+            const playerSock = document.getElementById('playerSock');
             
-            // ループで当たり判定チェック
-            requestAnimationFrame(gameLoop);
-        }
+            // 指の位置に追従（少し補正を入れて見やすくする）
+            window.addEventListener('touchmove', (e) => {
+                const touch = e.touches[0];
+                let x = touch.clientX;
+                playerSock.style.left = x + 'px';
+            }, { passive: false });
 
-        function spawnPresent() {
-            const emojis = ['🎁', '🧸', '🍬', '🔔', '💎', '🍰'];
-            const el = document.createElement('div');
-            el.classList.add('present');
-            el.innerText = emojis[Math.floor(Math.random() * emojis.length)];
-            
-            // 出現位置 (画面の10%〜90%)
-            const x = 10 + Math.random() * 80;
-            el.style.left = x + '%';
-            el.style.top = '-10%'; // 画面上外
-
-            document.body.appendChild(el);
-
-            // 落下速度 (スマホ画面は縦に長いので調整)
-            // 3秒〜5秒
-            const duration = 3000 + Math.random() * 2000;
-            
-            // アニメーション (CSS Transition)
-            el.style.transition = `top ${duration}ms linear`;
-            
-            // 強制レイアウト再計算させてアニメーション開始
-            requestAnimationFrame(() => {
-                el.style.top = '110vh';
+            window.addEventListener('mousemove', (e) => {
+                playerSock.style.left = e.clientX + 'px';
             });
 
-            // オブジェクト管理に追加
-            const item = {
-                el: el,
-                id: Date.now() + Math.random(),
-                caught: false
-            };
+            requestAnimationFrame(gameLoop);
+        }
+
+        function spawnPresent(data) {
+            const el = document.createElement('div');
+            el.classList.add('present');
+            el.innerText = data.emoji;
+            el.style.left = data.x + '%';
+            el.style.top = '-10%';
+
+            document.getElementById('screen-game').appendChild(el);
+
+            const duration = 2000 + Math.random() * 1000;
+            el.style.transition = `top ${duration}ms linear`;
+            requestAnimationFrame(() => { el.style.top = '110vh'; });
+
+            const item = { el: el, caught: false, id: Date.now() + Math.random() };
             fallingItems.push(item);
 
-            // 掃除
             setTimeout(() => {
                 if(el.parentNode) el.remove();
                 fallingItems = fallingItems.filter(i => i.id !== item.id);
             }, duration + 100);
         }
 
-        // --- 当たり判定ループ ---
+        // ★★★ ここが修正された当たり判定ロジック ★★★
         function gameLoop() {
-            if (!isPlaying) return;
-
+            const playerSock = document.getElementById('playerSock');
             const sockRect = playerSock.getBoundingClientRect();
-            // 靴下の「入り口」の判定エリア
+            
+            // 判定エリア（少し広めにする：左右+10px）
+            // 靴下の口の高さ（上部）で判定
             const hitZone = {
-                left: sockRect.left,
-                right: sockRect.right,
+                left: sockRect.left - 10,  // 左に10px甘く
+                right: sockRect.right + 10,// 右に10px甘く
                 top: sockRect.top,
-                bottom: sockRect.top + 50
+                bottom: sockRect.top + 60  // 高さを60px確保
             };
 
             fallingItems.forEach(item => {
-                if (item.caught) return;
+                if(item.caught) return;
+                
+                // プレゼントの矩形を取得
+                const pRect = item.el.getBoundingClientRect();
 
-                const itemRect = item.el.getBoundingClientRect();
-                const itemX = itemRect.left + itemRect.width / 2;
-                const itemY = itemRect.top + itemRect.height / 2;
-
-                // 衝突判定
+                // 【矩形同士の交差判定】
+                // プレゼントのどこかが、判定エリアに重なっていればOK
                 if (
-                    itemY > hitZone.top && 
-                    itemY < hitZone.bottom &&
-                    itemX > hitZone.left && 
-                    itemX < hitZone.right
+                    pRect.left < hitZone.right && 
+                    pRect.right > hitZone.left &&
+                    pRect.top < hitZone.bottom &&
+                    pRect.bottom > hitZone.top
                 ) {
                     catchItem(item);
                 }
@@ -319,30 +259,20 @@
 
         function catchItem(item) {
             item.caught = true;
-
-            // --- バイブレーションを追加 ---
-    // 50ミリ秒だけ短く振動させる（心地よいクリック感）
-    if (navigator.vibrate) {
-        navigator.vibrate(50);
-    }
-    // ----------------------------
-            
             item.el.remove();
             score++;
-            scoreVal.innerText = score;
-            
-            // エフェクト
-            const effect = document.createElement('div');
-            effect.classList.add('catch-effect');
-            effect.innerText = "GET!";
-            const rect = item.el.getBoundingClientRect(); // 削除前に位置取得が必要だが、CSSアニメーション中なのでgetBoundingClientRectは不安定かも
-            // 簡易的に靴下の位置に出す
+            document.getElementById('scoreVal').innerText = score;
+
+            const playerSock = document.getElementById('playerSock');
             const sockRect = playerSock.getBoundingClientRect();
-            effect.style.left = sockRect.left + 'px';
-            effect.style.top = (sockRect.top - 50) + 'px';
             
-            document.body.appendChild(effect);
-            setTimeout(() => effect.remove(), 500);
+            const ef = document.createElement('div');
+            ef.classList.add('catch-effect');
+            ef.innerText = "GET!";
+            ef.style.left = sockRect.left + 'px';
+            ef.style.top = (sockRect.top - 50) + 'px';
+            document.getElementById('screen-game').appendChild(ef);
+            setTimeout(() => ef.remove(), 500);
         }
     </script>
 </body>
